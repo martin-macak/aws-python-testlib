@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-testlib"
-version = "0.0.0.post1.dev0+fe97239"
+version = "0.1.0"
 description = ""
 authors = ["Martin Macak <martin.macak@gmail.com>"]
 readme = "README.md"

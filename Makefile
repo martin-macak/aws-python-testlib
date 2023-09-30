@@ -12,7 +12,7 @@ poetry.lock: pyproject.toml
 	@poetry lock
 
 dist/*.whl: poetry.lock
-	@poetry dynamic-versioning && \
+	@poetry dynamic-versioning
 	@poetry build
 
 publish:
