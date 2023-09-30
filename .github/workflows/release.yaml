@@ -25,6 +25,10 @@ jobs:
         with:
           path: ~/.cache/pypoetry/virtualenvs
           key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+      - uses: Setup poetry
+        run: >
+          poetry self add "poetry-dynamic-versioning[plugin]"
+          poetry dynamic-versioning enable
       - name: Build
         run: make
       - name: Release
