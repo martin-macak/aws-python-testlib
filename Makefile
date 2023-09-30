@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 MAKE := make
 
-VERSION ?= $(shell git describe --tags 2>/dev/null || echo "0.0.0-$$(git rev-parse --short HEAD)")
+TESTS ?= unit
 
 all: build
 
@@ -12,6 +12,19 @@ poetry.lock: pyproject.toml
 	@poetry lock
 
 dist/*.whl: poetry.lock
-	@export POETRY_DYNAMIC_VERSIONING_BYPASS="$(VERSION)" && \
-		poetry dynamic-versioning && \
-		poetry build
+	@poetry dynamic-versioning && \
+	@poetry build
+
+publish:
+	@if [[ ! -d './dist' ]]; then >&2 echo 'No dist found'; exit 1; fi
+	@poetry run twine upload --repository pypi dist/*.whl
+
+test:
+	@pytest tests -m $(TESTS)
+
+clean:
+	@rm -rf ./dist
+
+.PHONY: publish
+.PHONY: clean
+.PHONY: test

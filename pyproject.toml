@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "aws-python-testlib"
-version = "0.0.0"
+name = "aws-testlib"
+version = "0.0.0.post1.dev0+fe97239"
 description = ""
 authors = ["Martin Macak <martin.macak@gmail.com>"]
 readme = "README.md"
@@ -9,9 +9,21 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.11"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.2"
+
+[tool.poetry-dynamic-versioning]
+enable = true
 
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
+build-backend = "poetry_dynamic_versioning.backend"
+
+[tool.pytest.ini_options]
+markers = [
+    "unit: unit tests",
+]
