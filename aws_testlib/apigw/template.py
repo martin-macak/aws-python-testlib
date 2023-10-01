@@ -20,9 +20,13 @@ if not os.path.isfile(_java_plugin_file):
 
 
 def evaluate(template: str,
-             data: dict[str] = None, ) -> str:
+             data: dict = None,
+             stage_variables: dict = None) -> str:
     if data is None:
         data = {}
+
+    if stage_variables is None:
+        stage_variables = {}
 
     java_exec = distutils.spawn.find_executable('java')
     if java_exec is None:
@@ -40,30 +44,35 @@ def evaluate(template: str,
                 json.dump(data, df)
                 df.flush()
 
-                with open(f'{work_dir}/output', 'w') as of:
-                    p = subprocess.run(
-                        args=[
-                            java_exec,
-                            '-jar',
-                            _java_plugin_file,
-                            '-d',
-                            df.name,
-                            '-t',
-                            tf.name,
-                        ],
-                        stdout=of,
-                    )
+                with open(f'{work_dir}/stage_variables.json', 'w') as svf:
+                    logger.debug(f'Writing stage variables to {svf.name}')
+                    json.dump(stage_variables, svf)
+                    svf.flush()
 
-                    of.flush()
+                    with open(f'{work_dir}/output', 'w') as of:
+                        p = subprocess.run(
+                            args=[
+                                java_exec,
+                                '-jar',
+                                _java_plugin_file,
+                                '-d',
+                                df.name,
+                                '-t',
+                                tf.name,
+                                '-s',
+                                svf.name,
+                            ],
+                            stdout=of,
+                        )
 
-                    return_code = p.returncode
-                    if return_code != 0:
-                        raise RuntimeError(f'vtl exit code: {return_code}')
+                        of.flush()
 
-                    logger.debug(f'vtl exit code: {p.returncode}')
-                    logger.debug(f'processed file is at {work_dir}/output')
+                        return_code = p.returncode
+                        if return_code != 0:
+                            raise RuntimeError(f'vtl exit code: {return_code}')
 
-                    with open(f'{work_dir}/output', 'r') as f:
-                        return f.read()
+                        logger.debug(f'vtl exit code: {p.returncode}')
+                        logger.debug(f'processed file is at {work_dir}/output')
 
-
+                        with open(f'{work_dir}/output', 'r') as f:
+                            return f.read()
