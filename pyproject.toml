@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "aws-testlib"
 version = "0.1.0"
-description = ""
+description = "Provides support functions for testing AWS testing and mocking, namely AWS API Gateway Velocity engine"
 authors = ["Martin Macak <martin.macak@gmail.com>"]
 readme = "README.md"
 packages = [
@@ -9,7 +9,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11"
+python = ">=3.10,<3.12"
 
 
 [tool.poetry.group.test.dependencies]
