@@ -2,6 +2,8 @@ import logging
 import os
 import sys
 
+import boto3
+
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.getLevelName(os.environ.get("LOG_LEVEL", "DEBUG")))
@@ -10,3 +12,9 @@ handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+BOTO_LOGGING = os.environ.get("BOTO_LOGGING", "false").lower() == "true"
+if BOTO_LOGGING:
+    boto3.set_stream_logger()
+    boto3.set_stream_logger(name='boto3.resources', level=logging.DEBUG)
+    boto3.set_stream_logger(name='botocore', level=logging.DEBUG)

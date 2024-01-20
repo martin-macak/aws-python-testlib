@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 
 import yaml
@@ -58,7 +59,7 @@ def deploy_template(
 
     import boto3
     cfn = boto3.client('cloudformation')
-    cfn.create_stack(
+    cfn_stack_result = cfn.create_stack(
         StackName="test-stack-1",
         TemplateBody=pruned_template_raw,
         Parameters=[
@@ -69,6 +70,20 @@ def deploy_template(
             for key, value in parameter_overrides.items()
         ] if parameter_overrides else [],
     )
+
+    stack_id = cfn_stack_result['StackId']
+
+    is_created = False
+    while not is_created:
+        list_stacks_results = cfn.list_stacks()
+        stack = list_stacks_results['StackSummaries'][0]
+        stack_status = stack['StackStatus']
+        if stack_status == 'CREATE_COMPLETE':
+            is_created = True
+        elif stack_status == 'CREATE_FAILED':
+            raise RuntimeError(f"Stack creation failed: {stack}")
+        else:
+            time.sleep(1)
 
 
 def _prune_template(template: dict) -> dict:
@@ -82,6 +97,9 @@ def _prune_template(template: dict) -> dict:
             "AWS::DynamoDB::Table",
             "AWS::SQS::Queue",
             "AWS::SNS::Topic",
+            "AWS::SNS::Subscription",
+            "AWS::Serverless::Function",
+            "AWS::Lambda::Function",
         ]:
             pruned_template.pop(resource_name, None)
 
