@@ -2,7 +2,7 @@ import yaml
 
 
 def test_loader():
-    from aws_testlib.pytest.fixtures.cloudformation.cfn_yaml_tags import CFLoader
+    from aws_testlib.cloudformation.cfn_yaml_tags import CFLoader
 
     got = yaml.load(
         # language=yaml

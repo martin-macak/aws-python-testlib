@@ -8,8 +8,9 @@ import pytest
 from moto import (
     mock_cloudformation,
     mock_dynamodb,
-mock_dynamodbstreams,
+    mock_dynamodbstreams,
 )
+from aws_testlib.pytest.cfn_stack import build_cfn_stack
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def test_find_template_file(depth, monkeypatch, ):
         yield
 
     with dir_scope():
-        from aws_testlib.pytest.fixtures.cloudformation.cfn_template import find_template_file
+        from aws_testlib.cloudformation.cfn_template import find_template_file
         logger.debug(f"searching for {template_file} in work_dir: {work_dir}")
         template_file_path, ok = find_template_file(template_file)
         logger.debug(f"found template_file_path: {template_file_path}")
@@ -48,7 +49,7 @@ def test_find_template_file(depth, monkeypatch, ):
 
 
 def test_load_cloudformation_template():
-    from aws_testlib.pytest.fixtures.cloudformation.cfn_template import load_cloudformation_template
+    from aws_testlib.cloudformation.cfn_template import load_cloudformation_template
     template = load_cloudformation_template(base_dir=__dir)
 
     assert template is not None
@@ -58,9 +59,9 @@ def test_load_cloudformation_template():
 @mock_dynamodb
 @mock_dynamodbstreams
 def test_deploy_template_stack_1():
-    from aws_testlib.pytest.fixtures.cloudformation.cfn_template import deploy_template
+    from aws_testlib.cloudformation.cfn_template import deploy_template
     deploy_template(base_dir=__dir,
-                    template_file_name="test_stack_1.template.yaml", )
+                    template_file_name="../test_stack_1.template.yaml", )
 
     import boto3
     dynamodb_client = boto3.client('dynamodb')

@@ -7,7 +7,7 @@ def load_cloudformation_template(
     template_file_name: str = "template.yaml",
     base_dir: Optional[str] = None,
 ) -> dict:
-    from aws_testlib.pytest.fixtures.cloudformation.cfn_yaml_tags import CFLoader
+    from aws_testlib.cloudformation.cfn_yaml_tags import CFLoader
 
     template_file_name, ok = find_template_file(template_file_name, base_dir)
     if not ok:
@@ -51,7 +51,7 @@ def deploy_template(
     with open(template_file, mode="r") as f:
         template_raw = f.read()
 
-    from aws_testlib.pytest.fixtures.cloudformation.cfn_yaml_tags import CFLoader, CFTransformer
+    from aws_testlib.cloudformation.cfn_yaml_tags import CFLoader, CFTransformer
     original_template = yaml.load(template_raw, Loader=CFLoader)
     pruned_template = _prune_template(original_template)
     pruned_template_raw = yaml.dump(pruned_template, Dumper=CFTransformer)
@@ -80,6 +80,8 @@ def _prune_template(template: dict) -> dict:
         resource_type = resource_def.get("Type")
         if resource_type not in [
             "AWS::DynamoDB::Table",
+            "AWS::SQS::Queue",
+            "AWS::SNS::Topic",
         ]:
             pruned_template.pop(resource_name, None)
 
