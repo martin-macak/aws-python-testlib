@@ -3,6 +3,7 @@ from moto import (
     mock_sqs,
     mock_sns,
     mock_lambda_simple,
+    mock_iam,
 )
 
 from aws_testlib.pytest.cfn_stack import build_cfn_stack
@@ -22,8 +23,9 @@ def test_build_cfn_stack_1():
 @mock_sqs
 @mock_lambda_simple
 @mock_sns
+@mock_iam
 @build_cfn_stack(template_name="test_stack_2.template.yaml",
-                 components=["AWS::DynamoDB::Table", "AWS::SQS::Queue", "AWS::SNS::Topic", "AWS::Serverless::Function"],
+                 components=["AWS::DynamoDB::Table", "AWS::SQS::Queue", "AWS::SNS::Topic", "AWS::Lambda::Function"],
                  )
 def test_build_cfn_stack_2():
     import boto3

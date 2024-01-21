@@ -1,17 +1,18 @@
 import os
-from typing import Literal, Optional, Any
+from typing import Literal, Optional, Any, Type
 
 import boto3
-import moto.dynamodb.models as dynamodb_models
 from moto.cloudformation.models import CloudFormationModel
 from moto.cloudformation.parsing import ResourceMap, parse_resource
+
+__dir = os.path.abspath(os.path.dirname(__file__))
 
 SupportedComponents = Literal[
     "AWS::DynamoDB::Table",
     "AWS::SQS::Queue",
     "AWS::SNS::Topic",
     "AWS::S3::Bucket",
-    "AWS::Serverless::Function",
+    "AWS::Lambda::Function",
 ]
 
 DEFAULT_DEPLOYED_COMPONENTS = [
@@ -53,7 +54,19 @@ def deploy_template(
             continue
 
         resource_def_json = template["Resources"][resource_name]
-        resource_class, resource_json, resource_type = parse_resource(resource_def_json, rm)
+        resource = parse_resource(resource_def_json, rm)
+        if resource is None:
+            alternate_resource = find_alternate_resource(
+                resource_name=resource_name,
+                resource_def_json=resource_def_json,
+                rm=rm,
+            )
+            if alternate_resource is None:
+                continue
+            else:
+                resource = alternate_resource
+
+        resource_class, resource_json, resource_type = resource
         created = check_and_create_resource(resource_name=resource_name,
                                             resource_json=resource_json,
                                             resource_type=resource_type,
@@ -90,8 +103,44 @@ def check_and_create_resource(resource_name: str,
                 definition=resource_json,
             )
             return True
+        case "AWS::Lambda::Function":
+            _create_lambda(
+                function_name=resource_json["Properties"]["FunctionName"],
+                definition=resource_json,
+            )
         case _:
             return False
+
+
+def find_alternate_resource(
+    resource_name: str,
+    resource_def_json: dict[str, Any],
+    rm: ResourceMap,
+) -> Optional[tuple[Type[CloudFormationModel], Any, str]]:
+    resource_type = resource_def_json["Type"]
+    match resource_type:
+        case "AWS::Serverless::Function":
+            alternate_def = {
+                "Type": "AWS::Lambda::Function",
+                "Properties": {
+                    "FunctionName": resource_def_json["Properties"]["FunctionName"],
+                    # "Code": {
+                    #     "S3Bucket": "fake",
+                    #     "S3Key": "fake",
+                    # },
+                    "Code": {
+                        "ImageUri": "http://foo.fake",
+                    },
+                },
+            }
+            alternate_resource = parse_resource(
+                alternate_def,
+                rm,
+            )
+
+            return alternate_resource
+        case _:
+            return None
 
 
 def _create_dynamodb_table(
@@ -112,3 +161,31 @@ def _create_dynamodb_table(
         pass
     except dynamodb_client.exceptions.ResourceInUseException:
         pass
+
+
+def _create_lambda(
+    function_name: str,
+    definition: dict[str, Any],
+):
+    iam_client = boto3.client('iam')
+    iam_client.create_role(
+        RoleName=f"lambda-role-{function_name}",
+        Path="/service-role/tests/",
+        AssumeRolePolicyDocument="""
+        {
+            "Version":"2012-10-17",
+            "Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]
+        }
+            """,
+    )
+
+    lambda_client = boto3.client('lambda')
+    lambda_client.create_function(
+        FunctionName=function_name,
+        Runtime="python3.11",
+        Handler="app.lambda_handler",
+        Role=f"arn:aws:iam::123456789012:role/service-role/tests/lambda-role-{function_name}",
+        Code={
+            "ZipFile": "",
+        },
+    )
