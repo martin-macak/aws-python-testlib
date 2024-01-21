@@ -19,11 +19,6 @@ publish:
 	@if [[ ! -d './dist' ]]; then >&2 echo 'No dist found'; exit 1; fi
 	@poetry run twine upload --repository pypi dist/*.whl
 
-fake-lambda: aws_testlib/cloudformation/fake_lambda/lambda.zip
-
-aws_testlib/cloudformation/fake_lambda/lambda.zip:
-	@cd aws_testlib/cloudformation/fake_lambda && zip -r lambda.zip app.py
-
 test:
 	@pytest tests -m $(TESTS)
 

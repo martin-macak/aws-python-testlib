@@ -1,3 +1,5 @@
+import json
+
 import boto3
 from moto import (
     mock_dynamodb,
@@ -46,6 +48,6 @@ def test_build_cfn_stack_2(monkeypatch, ):
         )
 
         payload = result["Payload"]
-        data = payload.read()
+        data = json.loads(payload.read())
 
-        print(result)
+        assert data == 2

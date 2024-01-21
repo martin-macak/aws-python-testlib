@@ -49,24 +49,30 @@ def mock_invoke_local_lambda(**kwargs):
     base_dir = os.path.dirname(template_file_name)
     code_dir = os.path.join(base_dir, code_folder_name)
 
-    import importlib.util
-    import sys
-
     data = json.loads(payload) if payload is not None else None
 
-    if code_dir not in sys.path:
-        sys_path_altered = True
-        sys.path.append(code_dir)
-    else:
-        sys_path_altered = False
+    rel_import_name = code_dir.removeprefix(os.path.dirname(base_dir)).lstrip(os.path.sep).replace(os.path.sep, ".")
+    import sys
+    module = sys.modules.get(rel_import_name + "." + handler_module)
+    sys_path_altered = False
 
-    # check if already imported (how???)
-    # and call already imported module so mocks are still properly applied
+    if module is None:
+        import importlib.util
+        import sys
+
+        if code_dir not in sys.path:
+            sys_path_altered = True
+            sys.path.append(code_dir)
+
+        imported = importlib.import_module(handler_module)
+        module = imported
+
+    if hasattr(module, handler_func_name):
+        handler_func = getattr(module, handler_func_name)
+    else:
+        handler_func = None
 
     try:
-        imported = importlib.import_module(handler_module)
-        handler_func = getattr(imported, handler_func_name)
-
         if handler_func is None:
             raise ValueError(f"handler_func is None: {handler_uri}")
 
