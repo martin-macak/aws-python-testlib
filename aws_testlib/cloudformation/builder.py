@@ -116,6 +116,18 @@ def check_and_create_resource(
                 function_name=resource_json["Properties"]["FunctionName"],
                 definition=resource_json,
             )
+        case "AWS::SQS::Queue":
+            _create_queue(
+                template_file_name=template_file_name,
+                queue_name=resource_json["Properties"]["QueueName"],
+                definition=resource_json,
+            )
+        case "AWS::SNS::Topic":
+            _create_topic(
+                template_file_name=template_file_name,
+                topic_name=resource_json["Properties"]["TopicName"],
+                definition=resource_json,
+            )
         case _:
             return False
 
@@ -132,10 +144,6 @@ def find_alternate_resource(
                 "Type": "AWS::Lambda::Function",
                 "Properties": {
                     "FunctionName": resource_def_json["Properties"]["FunctionName"],
-                    # "Code": {
-                    #     "S3Bucket": "fake",
-                    #     "S3Key": "fake",
-                    # },
                     "Code": {
                         "ImageUri": f"{resource_def_json['Properties']['CodeUri']}:"
                                     f"{resource_def_json['Properties']['Handler']}",
@@ -156,15 +164,26 @@ def _create_dynamodb_table(
     table_name: str,
     definition: dict[str, Any],
 ):
-    dynamodb_client = boto3.client('dynamodb')
+    dynamodb_client = boto3.client("dynamodb")
+
+    spec = {
+        "TableName": table_name,
+        "AttributeDefinitions": definition["Properties"]["AttributeDefinitions"],
+        "KeySchema": definition["Properties"]["KeySchema"],
+        "BillingMode": "PAY_PER_REQUEST",
+        "Tags": definition.get("Tags"),
+        "StreamSpecification": definition.get("StreamSpecification"),
+        "GlobalSecondaryIndexes": definition.get("GlobalSecondaryIndexes"),
+    }
+
+    _delete_empty_keys(spec)
+
+    if "StreamSpecification" in spec:
+        spec["StreamSpecification"]["StreamEnabled"] = True
+
     try:
-        dynamodb_client.create_table(
-            TableName=table_name,
-            AttributeDefinitions=definition["Properties"]["AttributeDefinitions"],
-            KeySchema=definition["Properties"]["KeySchema"],
-            BillingMode="PAY_PER_REQUEST",
-        )
-        table = boto3.resource('dynamodb').Table(table_name)
+        dynamodb_client.create_table(**spec)
+        table = boto3.resource("dynamodb").Table(table_name)
         table.wait_until_exists()
     except dynamodb_client.exceptions.TableAlreadyExistsException:
         pass
@@ -177,7 +196,7 @@ def _create_lambda(
     function_name: str,
     definition: dict[str, Any],
 ):
-    iam_client = boto3.client('iam')
+    iam_client = boto3.client("iam")
     iam_client.create_role(
         RoleName=f"lambda-role-{function_name}",
         Path="/service-role/tests/",
@@ -191,7 +210,7 @@ def _create_lambda(
 
     code_uri = definition["Properties"]["Code"]["ImageUri"]
 
-    lambda_client = boto3.client('lambda')
+    lambda_client = boto3.client("lambda")
     lambda_client.create_function(
         FunctionName=function_name,
         Runtime="python3.11",
@@ -207,5 +226,52 @@ def _create_lambda(
         Tags={
             "testlib:template_file_name": template_file_name,
             "testlib:lambda:code-uri": code_uri,
-        }
+            **definition.get("Tags", {}),
+        },
     )
+
+
+def _create_queue(
+    template_file_name: str,
+    queue_name: str,
+    definition: dict[str, Any],
+):
+    sqs_client = boto3.client("sqs")
+
+    spec = {
+        "QueueName": queue_name,
+        "Tags": definition.get("Tags")
+    }
+
+    _delete_empty_keys(spec)
+
+    sqs_client.create_queue(**spec)
+
+
+def _create_topic(
+    template_file_name: str,
+    topic_name: str,
+    definition: dict[str, Any],
+):
+    sns_client = boto3.client("sns")
+
+    spec = {
+        "Name": topic_name,
+        "Tags": definition.get("Tags")
+    }
+
+    _delete_empty_keys(spec)
+
+    sns_client.create_topic(**spec)
+
+
+def _delete_empty_keys(d: dict[str, Any]):
+    for k, v in list(d.items()):
+        if isinstance(v, dict):
+            _delete_empty_keys(v)
+        elif v is None:
+            del d[k]
+        elif isinstance(v, list):
+            for i in v:
+                if isinstance(i, dict):
+                    _delete_empty_keys(i)
