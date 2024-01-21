@@ -1,4 +1,5 @@
 from typing import Optional
+from unittest.mock import patch
 
 import yaml
 
@@ -7,9 +8,11 @@ from aws_testlib.cloudformation.builder import SupportedComponents
 
 def build_cfn_stack(template_name: Optional[str] = None,
                     components: Optional[list[SupportedComponents]] = None,
+                    mock_lambda_with_local_packaged: bool = False,
                     ):
     from aws_testlib.cloudformation.cfn_template import find_template_file, transform_template_str
     from aws_testlib.cloudformation.builder import deploy_template
+    from aws_testlib.cloudformation.local_lambda import mock_invoke_local_lambda
 
     def decorator(func):
         def wrapper(*args, **kwargs):
@@ -23,9 +26,26 @@ def build_cfn_stack(template_name: Optional[str] = None,
 
             transformed_template_raw = transform_template_str(template_raw=template_raw)
             template = yaml.safe_load(transformed_template_raw)
-            deploy_template(template=template, deployed_components=components)
+            deploy_template(
+                template_file_name=template_file_name,
+                template=template,
+                deployed_components=components,
+            )
 
-            func(*args, **kwargs)
+            import botocore.client
+
+            # noinspection PyProtectedMember
+            orig = botocore.client.BaseClient._make_api_call
+
+            # noinspection PyShadowingNames
+            def mock_make_api_call(self, operation_name, kwargs):
+                if operation_name == "Invoke" and mock_lambda_with_local_packaged:
+                    return mock_invoke_local_lambda(**kwargs)
+                else:
+                    return orig(self, operation_name, kwargs)
+
+            with patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
+                func(*args, **kwargs)
 
         return wrapper
 

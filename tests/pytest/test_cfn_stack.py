@@ -1,3 +1,4 @@
+import boto3
 from moto import (
     mock_dynamodb,
     mock_sqs,
@@ -26,35 +27,12 @@ def test_build_cfn_stack_1():
 @mock_iam
 @build_cfn_stack(template_name="test_stack_2.template.yaml",
                  components=["AWS::DynamoDB::Table", "AWS::SQS::Queue", "AWS::SNS::Topic", "AWS::Lambda::Function"],
+                 mock_lambda_with_local_packaged=True,
                  )
 def test_build_cfn_stack_2():
-    import boto3
-    dynamodb_client = boto3.client('dynamodb')
-    sns_client = boto3.client('sns')
-    sqs_client = boto3.client('sqs')
     lambda_client = boto3.client('lambda')
-
-    response = dynamodb_client.list_tables()
-    assert "test-table" in response['TableNames']
-
-    response = sns_client.list_topics()
-    topics = response['Topics']
-    assert "test-topic" in [t['TopicArn'].split(":")[5] for t in topics]
-
-    response = sqs_client.list_queues()
-    queue_urls = response['QueueUrls']
-    assert "test-queue" in [q.removeprefix("https://").split("/")[2] for q in queue_urls]
-
-    topic_arn = topics[0]['TopicArn']
-    queue_arn = "arn:aws:sqs:fake:123456789012:test-queue"
-
-    sns_client.publish(
-        TopicArn=topic_arn,
-        Message="test message",
+    lambda_client.invoke(
+        FunctionName="test-echo",
+        InvocationType="RequestResponse",
+        Payload=b'{"foo": "bar"}',
     )
-
-    response = sqs_client.receive_message(
-        QueueUrl=queue_urls[0],
-    )
-    messages = response['Messages']
-    assert len(messages) == 1

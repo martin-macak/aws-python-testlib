@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Literal, Optional, Any, Type
 
@@ -21,6 +22,7 @@ DEFAULT_DEPLOYED_COMPONENTS = [
 
 
 def deploy_template(
+    template_file_name: str,
     template: dict,
     deployed_components: Optional[list[SupportedComponents]] = None,
     additional_tags: Optional[dict[str]] = None,
@@ -67,28 +69,33 @@ def deploy_template(
                 resource = alternate_resource
 
         resource_class, resource_json, resource_type = resource
-        created = check_and_create_resource(resource_name=resource_name,
-                                            resource_json=resource_json,
-                                            resource_type=resource_type,
-                                            resource_class=resource_class,
-                                            resource_map=rm,
-                                            account_id=aws_account_id,
-                                            region_name=aws_region,
-                                            deployed_components=deployed_components, )
+        created = check_and_create_resource(
+            template_file_name=template_file_name,
+            resource_name=resource_name,
+            resource_json=resource_json,
+            resource_type=resource_type,
+            resource_class=resource_class,
+            resource_map=rm,
+            account_id=aws_account_id,
+            region_name=aws_region,
+            deployed_components=deployed_components,
+        )
 
         if created:
             created_resources.add(resource_name)
 
 
-def check_and_create_resource(resource_name: str,
-                              resource_json: dict[str, Any],
-                              resource_type: str,
-                              resource_class: type[CloudFormationModel],
-                              resource_map: ResourceMap,
-                              account_id: str,
-                              region_name: str,
-                              deployed_components: Optional[list[SupportedComponents]] = None,
-                              ) -> bool:
+def check_and_create_resource(
+    template_file_name: str,
+    resource_name: str,
+    resource_json: dict[str, Any],
+    resource_type: str,
+    resource_class: type[CloudFormationModel],
+    resource_map: ResourceMap,
+    account_id: str,
+    region_name: str,
+    deployed_components: Optional[list[SupportedComponents]] = None,
+) -> bool:
     if deployed_components is None:
         deployed_components = DEFAULT_DEPLOYED_COMPONENTS
 
@@ -105,6 +112,7 @@ def check_and_create_resource(resource_name: str,
             return True
         case "AWS::Lambda::Function":
             _create_lambda(
+                template_file_name=template_file_name,
                 function_name=resource_json["Properties"]["FunctionName"],
                 definition=resource_json,
             )
@@ -129,7 +137,8 @@ def find_alternate_resource(
                     #     "S3Key": "fake",
                     # },
                     "Code": {
-                        "ImageUri": "http://foo.fake",
+                        "ImageUri": f"{resource_def_json['Properties']['CodeUri']}:"
+                                    f"{resource_def_json['Properties']['Handler']}",
                     },
                 },
             }
@@ -164,6 +173,7 @@ def _create_dynamodb_table(
 
 
 def _create_lambda(
+    template_file_name: str,
     function_name: str,
     definition: dict[str, Any],
 ):
@@ -179,6 +189,8 @@ def _create_lambda(
             """,
     )
 
+    code_uri = definition["Properties"]["Code"]["ImageUri"]
+
     lambda_client = boto3.client('lambda')
     lambda_client.create_function(
         FunctionName=function_name,
@@ -186,6 +198,14 @@ def _create_lambda(
         Handler="app.lambda_handler",
         Role=f"arn:aws:iam::123456789012:role/service-role/tests/lambda-role-{function_name}",
         Code={
-            "ZipFile": "",
+            "ZipFile": f"""{json.dumps(
+                {
+                    "TemplateFileName": template_file_name,
+                }
+            )}""",
         },
+        Tags={
+            "testlib:template_file_name": template_file_name,
+            "testlib:lambda:code-uri": code_uri,
+        }
     )

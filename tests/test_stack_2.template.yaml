@@ -10,38 +10,6 @@ Parameters:
 
 
 Resources:
-  DynamoDBTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub [ "${prefix}-table", { "prefix": !Ref ServiceName } ]
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-      StreamSpecification:
-        StreamViewType: NEW_AND_OLD_IMAGES
-
-  SNSTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Sub [ "${prefix}-topic", { "prefix": !Ref ServiceName } ]
-
-  SQSQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: !Sub [ "${prefix}-queue", { "prefix": !Ref ServiceName } ]
-
-  SQSToSNSSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      Endpoint: !GetAtt SQSQueue.Arn
-      Protocol: sqs
-      TopicArn: !GetAtt SNSTopic.TopicArn
-      RawMessageDelivery: true
-
   EchoFunction:
     Type: AWS::Serverless::Function
     Properties:
