@@ -1,4 +1,3 @@
-import time
 from typing import Optional
 
 import yaml
@@ -40,50 +39,18 @@ def find_template_file(
     return None, False
 
 
-def deploy_template(
-    template_file_name: str = "template.yaml",
-    base_dir: Optional[str] = None,
-    parameter_overrides: dict = None,
-):
-    template_file, ok = find_template_file(template_file_name, base_dir)
-    if not ok:
-        raise FileNotFoundError(template_file_name)
-
-    with open(template_file, mode="r") as f:
+def transform_template(template_file_name: str, ) -> str:
+    with open(template_file_name, mode="r") as f:
         template_raw = f.read()
 
+    return transform_template_str(template_raw)
+
+
+def transform_template_str(template_raw: str) -> str:
     from aws_testlib.cloudformation.cfn_yaml_tags import CFLoader, CFTransformer
     original_template = yaml.load(template_raw, Loader=CFLoader)
-    pruned_template = _prune_template(original_template)
-    pruned_template_raw = yaml.dump(pruned_template, Dumper=CFTransformer)
-
-    import boto3
-    cfn = boto3.client('cloudformation')
-    cfn_stack_result = cfn.create_stack(
-        StackName="test-stack-1",
-        TemplateBody=pruned_template_raw,
-        Parameters=[
-            {
-                "ParameterKey": key,
-                "ParameterValue": value,
-            }
-            for key, value in parameter_overrides.items()
-        ] if parameter_overrides else [],
-    )
-
-    stack_id = cfn_stack_result['StackId']
-
-    is_created = False
-    while not is_created:
-        list_stacks_results = cfn.list_stacks()
-        stack = list_stacks_results['StackSummaries'][0]
-        stack_status = stack['StackStatus']
-        if stack_status == 'CREATE_COMPLETE':
-            is_created = True
-        elif stack_status == 'CREATE_FAILED':
-            raise RuntimeError(f"Stack creation failed: {stack}")
-        else:
-            time.sleep(1)
+    result = yaml.dump(original_template, Dumper=CFTransformer)
+    return result
 
 
 def _prune_template(template: dict) -> dict:

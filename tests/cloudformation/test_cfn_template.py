@@ -5,12 +5,6 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-from moto import (
-    mock_cloudformation,
-    mock_dynamodb,
-    mock_dynamodbstreams,
-)
-from aws_testlib.pytest.cfn_stack import build_cfn_stack
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +47,3 @@ def test_load_cloudformation_template():
     template = load_cloudformation_template(base_dir=__dir)
 
     assert template is not None
-
-
-@mock_cloudformation
-@mock_dynamodb
-@mock_dynamodbstreams
-def test_deploy_template_stack_1():
-    from aws_testlib.cloudformation.cfn_template import deploy_template
-    deploy_template(base_dir=__dir,
-                    template_file_name="../test_stack_1.template.yaml", )
-
-    import boto3
-    dynamodb_client = boto3.client('dynamodb')
-    response = dynamodb_client.list_tables()
-    assert "test-table" in response['TableNames']

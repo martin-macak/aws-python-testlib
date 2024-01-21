@@ -9,23 +9,24 @@ from moto import (
 from aws_testlib.pytest.cfn_stack import build_cfn_stack
 
 
-@mock_cloudformation
 @mock_dynamodb
-@build_cfn_stack(template_name="test_stack_1.template.yaml")
-def test_build_cfn_stack():
+@build_cfn_stack(template_name="test_stack_1.template.yaml",
+                 components=["AWS::DynamoDB::Table"], )
+def test_build_cfn_stack_1():
     import boto3
     dynamodb_client = boto3.client('dynamodb')
     response = dynamodb_client.list_tables()
     assert "test-table" in response['TableNames']
 
 
-@mock_cloudformation
 @mock_dynamodb
 @mock_sqs
 @mock_lambda_simple
 @mock_sns
-@build_cfn_stack(template_name="test_stack_2.template.yaml")
-def test_build_cfn_stack():
+@build_cfn_stack(template_name="test_stack_2.template.yaml",
+                 components=["AWS::DynamoDB::Table", "AWS::SQS::Queue", "AWS::SNS::Topic", "AWS::Serverless::Function"],
+                 )
+def test_build_cfn_stack_2():
     import boto3
     dynamodb_client = boto3.client('dynamodb')
     sns_client = boto3.client('sns')
@@ -45,12 +46,6 @@ def test_build_cfn_stack():
 
     topic_arn = topics[0]['TopicArn']
     queue_arn = "arn:aws:sqs:fake:123456789012:test-queue"
-
-    sns_client.subscribe(
-        TopicArn=topic_arn,
-        Protocol='sqs',
-        Endpoint=queue_arn,
-    )
 
     sns_client.publish(
         TopicArn=topic_arn,
