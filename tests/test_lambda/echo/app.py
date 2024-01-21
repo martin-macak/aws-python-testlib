@@ -1,2 +1,6 @@
 def lambda_handler(event, context):
-    return event
+    return some_func()
+
+
+def some_func():
+    return 1
