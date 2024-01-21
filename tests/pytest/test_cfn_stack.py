@@ -1,5 +1,4 @@
 from moto import (
-    mock_cloudformation,
     mock_dynamodb,
     mock_sqs,
     mock_sns,

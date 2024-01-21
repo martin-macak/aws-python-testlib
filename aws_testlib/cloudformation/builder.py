@@ -76,12 +76,6 @@ def check_and_create_resource(resource_name: str,
                               region_name: str,
                               deployed_components: Optional[list[SupportedComponents]] = None,
                               ) -> bool:
-    model = resource_class.create_from_cloudformation_json(resource_name=resource_name,
-                                                           cloudformation_json=resource_json,
-                                                           account_id=account_id,
-                                                           region_name=region_name,
-                                                           )
-
     if deployed_components is None:
         deployed_components = DEFAULT_DEPLOYED_COMPONENTS
 
@@ -93,7 +87,7 @@ def check_and_create_resource(resource_name: str,
         case "AWS::DynamoDB::Table":
             _create_dynamodb_table(
                 table_name=resource_json["Properties"]["TableName"],
-                model=model,
+                definition=resource_json,
             )
             return True
         case _:
@@ -102,31 +96,15 @@ def check_and_create_resource(resource_name: str,
 
 def _create_dynamodb_table(
     table_name: str,
-    model: dynamodb_models.table.Table,
+    definition: dict[str, Any],
 ):
     dynamodb_client = boto3.client('dynamodb')
     try:
         dynamodb_client.create_table(
             TableName=table_name,
+            AttributeDefinitions=definition["Properties"]["AttributeDefinitions"],
+            KeySchema=definition["Properties"]["KeySchema"],
             BillingMode="PAY_PER_REQUEST",
-            AttributeDefinitions=model.attr,
-            KeySchema=list(filter(lambda x: x is not None, [
-                {
-                    "AttributeName": model.hash_key_names[0],
-                    "KeyType": "HASH",
-                },
-                {
-                    "AttributeName": model.range_key_names[0],
-                    "KeyType": "RANGE",
-                } if model.has_range_key else None,
-            ])),
-            Tags=[
-                {
-                    "Key": tag.key,
-                    "Value": tag.value,
-                }
-                for tag in model.tags
-            ],
         )
         table = boto3.resource('dynamodb').Table(table_name)
         table.wait_until_exists()
