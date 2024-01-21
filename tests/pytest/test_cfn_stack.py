@@ -31,7 +31,7 @@ def test_build_cfn_stack_2(monkeypatch, ):
     def mock_some_func():
         return 2
 
-    from tests.test_lambda.echo import app
+    from tests.src.test_lambda.echo import app
     monkeypatch.setattr(app, "some_func", mock_some_func)
 
     with build_cfn_stack(template_name="test_stack_2.template.yaml",
