@@ -7,6 +7,9 @@ import string
 import sys
 
 import six
+from aws_testlib.apigw.airspeed.types import (
+    Integer,
+)
 
 __all__ = [
     'Template',
@@ -378,7 +381,7 @@ class IntegerLiteral(_Element):
 
     def parse(self):
         self.value, = self.identity_match(self.INTEGER)
-        self.value = int(self.value)
+        self.value = Integer(int(self.value))
 
     def calculate(self, namespace, loader):
         return self.value
