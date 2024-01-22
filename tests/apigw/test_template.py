@@ -32,3 +32,34 @@ def _clean_output(val: str) -> str:
     cleaned = "\n".join(lines)
 
     return cleaned
+
+
+def test_aws_api_gateway_context():
+    from aws_testlib.apigw.template import AWSApiGatewayContext
+    context = AWSApiGatewayContext()
+
+    request_context = context._request_context
+    assert request_context is None
+
+
+def test_request_input():
+    from aws_testlib.apigw.template import AWSApiGatewayContext
+    ri = AWSApiGatewayContext.RequestInput(
+        body={"foo": {"bar": "baz"}},
+    )
+
+    assert ri.body == '{"foo": {"bar": "baz"}}'
+    assert ri.json("$.foo") == {"bar": "baz"}
+
+
+def test_evaluate_aws_1():
+    from aws_testlib.apigw.template import evaluate_aws
+    got = evaluate_aws(
+        """
+        $input.body
+    """,
+        body={"foo": {"bar": "baz"}},
+    )
+
+    assert _clean_output(got) == '{"foo": {"bar": "baz"}}'
+
