@@ -19,6 +19,7 @@ def evaluate(template: str,
 def evaluate_aws(
     template: str,
     body: dict = None,
+    request_parameters: dict = None,
 ):
     from aws_testlib.apigw.airspeed.engine import Template
     t = Template(template)
@@ -72,12 +73,9 @@ class AWSApiGatewayContext(dict):
                      ):
             super().__init__({
                 "body": json.dumps(body),
-                "json": lambda path: _eval_json_path(path, body),
+                "json": lambda path: json.dumps(_eval_json_path(path, body)),
+                "path": lambda path: _eval_json_path(path, body),
             })
-
-        # noinspection PyMethodMayBeStatic
-        def _eval_json_path(self, obj: dict, path: str):
-            return "pepa"
 
         def __getattribute__(self, item):
             if item.startswith("_"):

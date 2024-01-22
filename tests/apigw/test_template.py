@@ -42,7 +42,7 @@ def test_aws_api_gateway_context():
     assert request_context is None
 
 
-def test_evaluate_aws_1():
+def test_evaluate_aws_input_body():
     from aws_testlib.apigw.template import evaluate_aws
     got = evaluate_aws(
         """
@@ -54,11 +54,23 @@ def test_evaluate_aws_1():
     assert _clean_output(got) == '{"foo": {"bar": "baz"}}'
 
 
-def test_evaluate_aws_2():
+def test_evaluate_aws_input_json():
     from aws_testlib.apigw.template import evaluate_aws
     got = evaluate_aws(
         """
         $input.json("$.foo.bar")
+    """,
+        body={"foo": {"bar": "baz"}},
+    )
+
+    assert _clean_output(got) == '"baz"'
+
+
+def test_evaluate_aws_input_path():
+    from aws_testlib.apigw.template import evaluate_aws
+    got = evaluate_aws(
+        """
+        $input.path("$.foo.bar")
     """,
         body={"foo": {"bar": "baz"}},
     )
