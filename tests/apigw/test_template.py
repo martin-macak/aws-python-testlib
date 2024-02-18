@@ -76,3 +76,16 @@ def test_evaluate_aws_input_path():
     )
 
     assert _clean_output(got) == 'baz'
+
+
+def test_evaluate_aws_input_path_and_stage_variables():
+    from aws_testlib.apigw.template import evaluate_aws
+    got = evaluate_aws(
+        """
+        $input.path("$.foo.bar"),$stageVariables.stg
+    """,
+        body={"foo": {"bar": "baz"}},
+        stage_variables={"stg": "dev"},
+    )
+
+    assert _clean_output(got) == 'baz,dev'
