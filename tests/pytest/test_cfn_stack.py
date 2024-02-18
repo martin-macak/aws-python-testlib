@@ -6,13 +6,16 @@ from moto import (
     mock_sqs,
     mock_sns,
     mock_lambda_simple,
-    mock_iam,
+    mock_iam, mock_dynamodbstreams,
 )
 
 from aws_testlib.pytest.cfn_stack import build_cfn_stack
 
 
 @mock_dynamodb
+@mock_iam
+@mock_lambda_simple
+@mock_dynamodbstreams
 def test_build_cfn_stack_1():
     import boto3
     with build_cfn_stack(template_name="test_stack_1.template.yaml",
@@ -24,6 +27,7 @@ def test_build_cfn_stack_1():
 
 @mock_lambda_simple
 @mock_iam
+@mock_dynamodbstreams
 def test_build_cfn_stack_2(monkeypatch, ):
     def mock_some_func():
         return 2
