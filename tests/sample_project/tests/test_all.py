@@ -27,6 +27,7 @@ def test(monkeypatch, ):
         with build_cfn_stack(
             template_name="template.yaml",
             components=["AWS::DynamoDB::Table", "AWS::Lambda::Function"],
+            mock_lambda_with_local_packaged=True,
         ) as stack:
             stack.process_event_loop()
     finally:

@@ -28,9 +28,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub [ "${prefix}-cdc-function", { "prefix": !Ref ServiceName } ]
-      Handler: index.handler
       Runtime: python3.11
       CodeUri: ./cdc_lambda_handler
+      Handler: cdc.lambda_handler
       Environment:
         Variables:
           TABLE_NAME: !Ref DynamoDBTable
