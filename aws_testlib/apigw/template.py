@@ -83,9 +83,9 @@ def _eval_request_params(
     arg_name: Optional[str] = None
 ):
     if arg_name is None:
-        return request_parameters
+        return request_parameters or {}
     else:
-        return request_parameters.get(arg_name)
+        return (request_parameters or {}).get(arg_name, "")
 
 
 class AWSApiGatewayUtil:
