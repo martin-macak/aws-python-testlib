@@ -15,7 +15,11 @@ class HandleContext:
         signal_type: str,
         event: Any,
     ):
-        pass
+        self._stack.signal(
+            resource_name=resource_name,
+            signal_type=signal_type,
+            event=event,
+        )
 
     def add_state(
         self,
@@ -42,6 +46,7 @@ class HandleContext:
 class Stack:
     def __init__(self):
         self._handles: dict[str, tuple[str, Callable]] = {}
+        self._signal_handlers: dict[str, tuple[str, Callable]] = {}
         self._state = {
             "handles": {
 
@@ -56,6 +61,26 @@ class Stack:
                     handle_id=handle_id,
                 )
             )
+
+    def register_signal_handler(
+        self,
+        resource_name: str,
+        signal_type: str,
+        handler: Callable,
+    ):
+        handler_id = f"{resource_name}:{signal_type}"
+        self._signal_handlers[handler_id] = (resource_name, handler)
+
+    def signal(
+        self,
+        resource_name: str,
+        signal_type: str,
+        event: Any,
+    ):
+        handler_id = f"{resource_name}:{signal_type}"
+        handler = self._signal_handlers.get(handler_id)
+        if handler is not None:
+            handler[1](event)
 
     def register_to_event_loop(
         self,

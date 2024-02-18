@@ -171,6 +171,7 @@ def find_alternate_resource(
                 stack=stack,
                 resource_name=resource_name,
                 resource_def_json=resource_def_json,
+                alternate_resource=alternate_resource,
             )
 
             return alternate_resource
@@ -339,20 +340,53 @@ def _handle_serverless_extensions(
     rm: ResourceMap,
     resource_name: str,
     resource_def_json: dict[str, Any],
+    alternate_resource: tuple[Type[CloudFormationModel], Any, str],
 ):
     serverless_type = resource_def_json["Type"]
     match serverless_type:
         case "AWS::Serverless::Function":
-            properties = resource_def_json["Properties"]
-            if "Events" in properties:
-                for event_name, event in properties["Events"].items():
-                    event_type = event["Type"]
-                    match event_type:
-                        case "DynamoDB":
-                            stream = event["Properties"]["Stream"]
-                            table_name = stream["Fn::GetAtt"].split(".")[0]
-                            # TODO: register for signal
-                            pass
+            _handle_serverless_function_extension(
+                stack=stack,
+                rm=rm,
+                resource_name=resource_name,
+                resource_def_json=resource_def_json,
+                alternate_resource=alternate_resource,
+            )
+
+
+def _handle_serverless_function_extension(
+    stack: Stack,
+    rm: ResourceMap,
+    resource_name: str,
+    resource_def_json: dict[str, Any],
+    alternate_resource: tuple[Type[CloudFormationModel], Any, str],
+):
+    aws_lambda = boto3.client("lambda")
+
+    properties = resource_def_json["Properties"]
+    if "Events" in properties:
+        for event_name, event in properties["Events"].items():
+            event_type = event["Type"]
+            match event_type:
+                case "DynamoDB":
+                    stream = event["Properties"]["Stream"]
+                    table_logical_resource_id = stream["Fn::GetAtt"].split(".")[0]
+                    table = rm.get(table_logical_resource_id)
+                    table_name = table.name
+
+                    def handle(ev):
+                        function_name = alternate_resource[1]["Properties"]["FunctionName"]
+                        aws_lambda.invoke(
+                            FunctionName=function_name,
+                            InvocationType="RequestResponse",
+                            Payload=json.dumps({}),
+                        )
+
+                    stack.register_signal_handler(
+                        resource_name=table_name,
+                        signal_type="DynamoDBStream",
+                        handler=handle,
+                    )
 
 
 def _delete_empty_keys(d: dict[str, Any]):

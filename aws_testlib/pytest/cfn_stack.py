@@ -61,26 +61,6 @@ def build_cfn_stack(template_name: Optional[str] = None,
     from aws_testlib.cloudformation.cfn_template import find_template_file, transform_template_str
     from aws_testlib.cloudformation.builder import deploy_template
     from aws_testlib.cloudformation.local_lambda import mock_invoke_local_lambda
-
-    stack = Stack()
-
-    # from aws_testlib.cloudformation.cfn_template import deploy_template
-    template_file_name, ok = find_template_file(template_file_name=template_name)
-    if not ok:
-        raise FileNotFoundError(template_file_name)
-
-    with open(template_file_name, mode="r") as f:
-        template_raw = f.read()
-
-    transformed_template_raw = transform_template_str(template_raw=template_raw)
-    template = yaml.safe_load(transformed_template_raw)
-    deploy_template(
-        stack=stack,
-        template_file_name=template_file_name,
-        template=template,
-        deployed_components=components,
-    )
-
     import botocore.client
 
     # noinspection PyProtectedMember
@@ -94,4 +74,23 @@ def build_cfn_stack(template_name: Optional[str] = None,
             return orig(self, operation_name, kwargs)
 
     with patch("botocore.client.BaseClient._make_api_call", new=mock_make_api_call):
+        stack = Stack()
+
+        # from aws_testlib.cloudformation.cfn_template import deploy_template
+        template_file_name, ok = find_template_file(template_file_name=template_name)
+        if not ok:
+            raise FileNotFoundError(template_file_name)
+
+        with open(template_file_name, mode="r") as f:
+            template_raw = f.read()
+
+        transformed_template_raw = transform_template_str(template_raw=template_raw)
+        template = yaml.safe_load(transformed_template_raw)
+        deploy_template(
+            stack=stack,
+            template_file_name=template_file_name,
+            template=template,
+            deployed_components=components,
+        )
+
         yield stack
