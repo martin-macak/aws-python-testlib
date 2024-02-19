@@ -9,6 +9,9 @@ class HandleContext:
         self._stack = stack
         self._handle_id = handle_id
 
+    def __del__(self):
+        self._stack.stop_event_loop()
+
     def signal(
         self,
         resource_name: str,

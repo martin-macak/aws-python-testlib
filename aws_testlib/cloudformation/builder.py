@@ -243,13 +243,14 @@ def _create_dynamodb_table(
             next_shard_iterator = get_records_result["NextShardIterator"]
             ctx.add_state("next_shard_iterator", next_shard_iterator)
 
-            ctx.signal(
-                resource_name=table_name,
-                signal_type="DynamoDBStream",
-                event={
-                    "records": records,
-                }
-            )
+            if len(records) > 0:
+                ctx.signal(
+                    resource_name=table_name,
+                    signal_type="DynamoDBStream",
+                    event={
+                        "records": records,
+                    }
+                )
 
         stack.register_to_event_loop(
             handle_id=shard["ShardId"],
@@ -379,12 +380,21 @@ def _handle_serverless_function_extension(
                     table = rm.get(table_logical_resource_id)
                     table_name = table.name
 
+                    def json_serial(obj):
+                        """JSON serializer for objects not serializable by default json code"""
+
+                        from datetime import datetime
+                        from datetime import date
+                        if isinstance(obj, (datetime, date)):
+                            return obj.isoformat()
+                        raise TypeError("Type %s not serializable" % type(obj))
+
                     def handle(ev):
                         function_name = alternate_resource[1]["Properties"]["FunctionName"]
                         aws_lambda.invoke(
                             FunctionName=function_name,
                             InvocationType="RequestResponse",
-                            Payload=json.dumps({}),
+                            Payload=json.dumps(ev, default=json_serial),
                         )
 
                     stack.register_signal_handler(

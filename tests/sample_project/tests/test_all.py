@@ -1,6 +1,7 @@
 import os.path
 import sys
 
+import boto3
 from moto import mock_dynamodb, mock_lambda_simple, mock_iam, mock_dynamodbstreams
 
 from aws_testlib.pytest.cfn_stack import build_cfn_stack
@@ -37,6 +38,10 @@ def test(monkeypatch, ):
             components=["AWS::DynamoDB::Table", "AWS::Lambda::Function"],
             mock_lambda_with_local_packaged=True,
         ) as stack:
+            dynamodb = boto3.resource("dynamodb")
+            table = dynamodb.Table("test-table")
+            table.put_item(Item={"id": "1", "name": "test"})
+
             stack.process_event_loop()
     finally:
         sys.path.pop()
