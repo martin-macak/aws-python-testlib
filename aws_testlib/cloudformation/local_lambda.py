@@ -42,7 +42,7 @@ def mock_invoke_local_lambda(**kwargs):
         }
 
     template_file_name = f_def.get("Tags", {}).get("testlib:template_file_name")
-    code_uri = f_def.get("Tags", {}).get("testlib:lambda:code-uri")
+    code_uri = f_def.get("Tags", {}).get("testlib:lambda:code-uri").removeprefix("./")
     code_folder_name, handler_uri = code_uri.split(":")
     handler_module, handler_func_name = handler_uri.split(".")
 
@@ -51,9 +51,11 @@ def mock_invoke_local_lambda(**kwargs):
 
     data = json.loads(payload) if payload is not None else None
 
-    rel_import_name = code_dir.removeprefix(os.path.dirname(base_dir)).lstrip(os.path.sep).replace(os.path.sep, ".")
+    # rel_import_name = code_dir.removeprefix(os.path.dirname(base_dir)).lstrip(os.path.sep).replace(os.path.sep, ".")
+    rel_import_name = os.path.join(code_folder_name).replace(os.path.sep, ".")
     import sys
-    module = sys.modules.get(rel_import_name + "." + handler_module)
+    module_name = rel_import_name + "." + handler_module
+    module = sys.modules.get(module_name)
     sys_path_altered = False
 
     if module is None:

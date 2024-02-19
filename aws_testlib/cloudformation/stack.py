@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 
 class HandleContext:
@@ -52,15 +52,33 @@ class Stack:
 
             },
         }
+        self._loop_thread = None
 
-    def process_event_loop(self):
-        for handle_id, (resource_name, resource_handle) in self._handles.items():
-            resource_handle(
-                HandleContext(
-                    stack=self,
-                    handle_id=handle_id,
+    def process_event_loop(
+        self,
+        on_background: Optional[bool] = False
+    ):
+        def do_loop():
+            for handle_id, (resource_name, resource_handle) in self._handles.items():
+                resource_handle(
+                    HandleContext(
+                        stack=self,
+                        handle_id=handle_id,
+                    )
                 )
-            )
+
+        if on_background is False:
+            do_loop()
+        else:
+            import threading
+            thread = threading.Thread(target=do_loop)
+            self._loop_thread = thread
+            thread.start()
+
+    def stop_event_loop(self):
+        if self._loop_thread is not None:
+            self._loop_thread.join()
+            self._loop_thread = None
 
     def register_signal_handler(
         self,

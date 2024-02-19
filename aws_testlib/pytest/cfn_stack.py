@@ -94,3 +94,5 @@ def build_cfn_stack(template_name: Optional[str] = None,
         )
 
         yield stack
+
+        stack.stop_event_loop()

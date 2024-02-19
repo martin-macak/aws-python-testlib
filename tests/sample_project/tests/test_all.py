@@ -13,13 +13,20 @@ _dir = os.path.abspath(os.path.dirname(__file__))
 @mock_lambda_simple
 @mock_iam
 def test(monkeypatch, ):
+    state = {
+        "calls": {
+            "process_cdc": [],
+        },
+    }
+
     try:
-        sys.path.append(os.path.join(_dir, ".."))
+        base_dir = os.path.abspath(os.path.join(_dir, ".."))
+        sys.path.append(base_dir)
         # noinspection PyUnresolvedReferences
         from cdc_lambda_handler import cdc as cdc_module
 
         def mock_process_cdc(event):
-            pass
+            state["calls"]["process_cdc"].append(event)
 
         monkeypatch.setattr(cdc_module, "process_cdc", mock_process_cdc)
 
@@ -32,3 +39,5 @@ def test(monkeypatch, ):
             stack.process_event_loop()
     finally:
         sys.path.pop()
+
+    assert len(state["calls"]["process_cdc"]) == 1

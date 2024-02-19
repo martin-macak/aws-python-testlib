@@ -370,7 +370,12 @@ def _handle_serverless_function_extension(
             match event_type:
                 case "DynamoDB":
                     stream = event["Properties"]["Stream"]
-                    table_logical_resource_id = stream["Fn::GetAtt"].split(".")[0]
+                    if "Fn::GetAtt" in stream:
+                        table_logical_resource_id = stream["Fn::GetAtt"].split(".")[0]
+                    elif "Ref" in stream:
+                        table_logical_resource_id = stream["Ref"]
+                    else:
+                        table_logical_resource_id = str(stream)
                     table = rm.get(table_logical_resource_id)
                     table_name = table.name
 
