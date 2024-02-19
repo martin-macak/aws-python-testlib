@@ -19,8 +19,9 @@ def test(monkeypatch, ):
         },
     }
 
+    base_dir = os.path.abspath(os.path.join(_dir, ".."))
+
     try:
-        base_dir = os.path.abspath(os.path.join(_dir, ".."))
         sys.path.append(base_dir)
         # noinspection PyUnresolvedReferences
         from cdc_lambda_handler import cdc as cdc_module
