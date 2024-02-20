@@ -1,3 +1,4 @@
+import time
 from typing import Any, Callable, Optional
 
 
@@ -56,6 +57,8 @@ class Stack:
             },
         }
         self._loop_thread = None
+        self._is_running = False
+        self._signals_emitted = 0
 
     def process_event_loop(
         self,
@@ -70,13 +73,31 @@ class Stack:
                     )
                 )
 
+        def do_background_loop():
+            while self._is_running:
+                do_loop()
+                time.sleep(0.1)
+
         if on_background is False:
             do_loop()
         else:
             import threading
-            thread = threading.Thread(target=do_loop)
+            thread = threading.Thread(target=do_background_loop, daemon=True)
             self._loop_thread = thread
             thread.start()
+
+    def wait_for_empty_loop(self):
+        is_done = False
+        while not is_done:
+            self._signals_emitted = 0
+            for handle_id, (resource_name, resource_handle) in self._handles.items():
+                resource_handle(
+                    HandleContext(
+                        stack=self,
+                        handle_id=handle_id,
+                    )
+                )
+            is_done = self._signals_emitted == 0
 
     def stop_event_loop(self):
         if self._loop_thread is not None:
@@ -102,6 +123,7 @@ class Stack:
         handler = self._signal_handlers.get(handler_id)
         if handler is not None:
             handler[1](event)
+        self._signals_emitted += 1
 
     def register_to_event_loop(
         self,

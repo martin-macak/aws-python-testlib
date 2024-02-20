@@ -38,11 +38,12 @@ def test(monkeypatch, ):
             components=["AWS::DynamoDB::Table", "AWS::Lambda::Function"],
             mock_lambda_with_local_packaged=True,
         ) as stack:
+            stack.process_event_loop(on_background=True)
             dynamodb = boto3.resource("dynamodb")
             table = dynamodb.Table("test-table")
             table.put_item(Item={"id": "1", "name": "test"})
+            stack.wait_for_empty_loop()
 
-            stack.process_event_loop()
     finally:
         sys.path.pop()
 
