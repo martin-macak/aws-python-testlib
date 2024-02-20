@@ -1,78 +1,197 @@
-import distutils.spawn
-import io
 import json
 import logging
-import subprocess
-import sys
 import os
-import tempfile
+import time
+import uuid
+from typing import Any, Optional
+
+import shortuuid
 
 logger = logging.getLogger(__name__)
 
-_current_module = sys.modules[__name__]
-
-_current_module_path = _current_module.__file__
-_base_dir = os.path.dirname(_current_module_path)
-_java_plugin_file = os.path.join(_base_dir, 'java', 'aws-apigateway-velocity-repl.jar')
-
-if not os.path.isfile(_java_plugin_file):
-    raise RuntimeError(f'Java plugin file not found: {_java_plugin_file}')
-
 
 def evaluate(template: str,
-             data: dict = None,
-             stage_variables: dict = None) -> str:
-    if data is None:
-        data = {}
+             data: Optional[dict[str, Any]] = None,
+             ) -> str:
+    from aws_testlib.apigw.airspeed.engine import Template
+    t = Template(template)
 
-    if stage_variables is None:
-        stage_variables = {}
+    result = t.merge(data)
+    return result
 
-    java_exec = distutils.spawn.find_executable('java')
-    if java_exec is None:
-        print('java not found')
-        raise RuntimeError('java executable not found')
 
-    with tempfile.TemporaryDirectory() as work_dir:
-        with open(f'{work_dir}/template.vtl', 'w') as tf:
-            logger.debug(f'Writing template to {tf.name}')
-            tf.write(template)
-            tf.flush()
+def evaluate_aws(
+    template: str,
+    body: dict = None,
+    request_parameters: Optional[dict[str, Any]] = None,
+    context: Optional[dict[str, Any]] = None,
+    stage_variables: Optional[dict[str, Any]] = None,
+):
+    from aws_testlib.apigw.airspeed.engine import Template
+    t = Template(template)
 
-            with open(f'{work_dir}/data.json', 'w') as df:
-                logger.debug(f'Writing test data to {df.name}')
-                json.dump(data, df)
-                df.flush()
+    context = AWSApiGatewayContext(
+        request_parameters=request_parameters,
+        body=body,
+        stage_variables=stage_variables,
+        context=context,
+    )
 
-                with open(f'{work_dir}/stage_variables.json', 'w') as svf:
-                    logger.debug(f'Writing stage variables to {svf.name}')
-                    json.dump(stage_variables, svf)
-                    svf.flush()
+    result = t.merge(context)
+    return result
 
-                    with open(f'{work_dir}/output', 'w') as of:
-                        p = subprocess.run(
-                            args=[
-                                java_exec,
-                                '-jar',
-                                _java_plugin_file,
-                                '-d',
-                                df.name,
-                                '-t',
-                                tf.name,
-                                '-s',
-                                svf.name,
-                            ],
-                            stdout=of,
-                        )
 
-                        of.flush()
+def _create_context(
+    data: Optional[dict[str, Any]] = None,
+    stage_variables: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    return _Context(data, stage_variables)
 
-                        return_code = p.returncode
-                        if return_code != 0:
-                            raise RuntimeError(f'vtl exit code: {return_code}')
 
-                        logger.debug(f'vtl exit code: {p.returncode}')
-                        logger.debug(f'processed file is at {work_dir}/output')
+class _Context(dict):
+    def __init__(
+        self,
+        data: dict[str, Any] = None,
+        stage_variables: dict[str, Any] = None,
+    ):
+        super().__init__()
+        self.update(data or {})
+        self.update(stage_variables or {})
 
-                        with open(f'{work_dir}/output', 'r') as f:
-                            return f.read()
+
+def _eval_json_path(
+    path: str,
+    obj: dict,
+):
+    from jsonpath_ng import parse
+    # noinspection PyBroadException
+    try:
+        jp = parse(path)
+    except:  # noqa: E722
+        return None
+
+    found = jp.find(obj)
+    if found is None or len(found) == 0:
+        return None
+
+    matching = found[0].value
+    return matching
+
+
+def _eval_request_params(
+    request_parameters: dict,
+    arg_name: Optional[str] = None
+):
+    if arg_name is None:
+        return request_parameters or {}
+    else:
+        return (request_parameters or {}).get(arg_name, "")
+
+
+class AWSApiGatewayUtil:
+    # noinspection PyPep8Naming,PyMethodMayBeStatic
+    def escapeJavaScript(self, val):
+        return str(val or "").replace("'", "\\'")
+
+    # noinspection PyPep8Naming,PyMethodMayBeStatic
+    def parseJson(self, val):
+        return json.loads(str(val or ""))
+
+    # noinspection PyPep8Naming,PyMethodMayBeStatic
+    def urlEncode(self, val):
+        from urllib.parse import quote
+        return quote(val or "")
+
+    # noinspection PyPep8Naming,PyMethodMayBeStatic
+    def urlDecode(self, val):
+        from urllib.parse import unquote
+        return unquote(val or "")
+
+    # noinspection PyPep8Naming,PyMethodMayBeStatic
+    def base64Encode(self, val):
+        from base64 import urlsafe_b64encode
+        return urlsafe_b64encode(val or "")
+
+    # noinspection PyPep8Naming,PyMethodMayBeStatic
+    def base64Decode(self, val):
+        from base64 import urlsafe_b64decode
+        return urlsafe_b64decode(val or "")
+
+
+class AWSApiGatewayContext(dict):
+    """
+
+    References:
+        https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-mapping-template-reference.html
+    """
+
+    class RequestInput(dict):
+
+        def __init__(self,
+                     body: dict = None,
+                     request_parameters: dict = None,
+                     ):
+            super().__init__({
+                "body": json.dumps(body),
+                "json": lambda path: json.dumps(_eval_json_path(path, body)),
+                "path": lambda path: _eval_json_path(path, body),
+                "params": lambda *args: _eval_request_params(request_parameters, args[0] if len(args) == 1 else args),
+            })
+
+        def __getattribute__(self, item):
+            if item.startswith("_"):
+                return None
+
+            return super().__getattribute__(item)
+
+    def __init__(self,
+                 request_parameters: Optional[dict[str, Any]] = None,
+                 body: Optional[dict[str, Any]] = None,
+                 stage_variables: Optional[dict[str, Any]] = None,
+                 context: Optional[dict[str, Any]] = None,
+                 ):
+        super().__init__({
+            "input": AWSApiGatewayContext.RequestInput(
+                request_parameters=request_parameters,
+                body=body
+            ),
+            "util": AWSApiGatewayUtil(),
+            "stageVariables": stage_variables or {},
+            "context": context or _create_default_context(),
+        })
+
+    def __getattribute__(self, item):
+        if item.startswith("_"):
+            return None
+
+        return super().__getattribute__(item)
+
+
+def _create_default_context() -> dict[str, Any]:
+    request_id = str(uuid.uuid4())
+    account_id = (
+        os.environ.get("AWS_ACCOUNT_ID")
+        or os.environ.get("MOTO_ACCOUNT_ID")
+        or "123456789012"
+    )
+
+    return {
+        "accountId": account_id,
+        "apiId": str(shortuuid.random()),
+        "authorizer": {
+            "principalId": "user",
+        },
+        "awsEndpointRequestId": "aws",
+        "domainName": "domain",
+        "domainPrefix": "domainPrefix",
+        "extendedRequestId": request_id,
+        "httpMethod": "GET",
+        "path": "/",
+        "protocol": "https",
+        "requestId": request_id,
+        "requestTime": "01/01/2024:00:00:00",
+        "requestTimeEpoch": round(time.time()),
+        "resourceId": "resource",
+        "resourcePath": "/",
+        "stage": "Default",
+    }

@@ -1,0 +1,18 @@
+discovery:
+  exclusions:
+    - tests/integration/
+    - .aws-sam/
+    - .venv/
+
+engine:
+  runtime: pytest
+  timeout: 20
+  cpu-cores: 4
+  multiprocessing-threshold: 4
+  load-pytest-plugins: true
+  deep-inheritance: false
+  change-detection-root: .
+  enable-web-ui: true
+
+env:
+  LOG_LEVEL: DEBUG
