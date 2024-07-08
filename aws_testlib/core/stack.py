@@ -113,7 +113,7 @@ class Stack(ABC):
 
     def dispose(self):
         self._status = "disposing"
-        force_delete_stack(self._name)
+        self._force_delete_stack()
         self._status = "disposed"
 
     # noinspection PyMethodMayBeStatic
@@ -169,7 +169,7 @@ class Stack(ABC):
     def _instrument(self):
         pass
 
-    def force_delete_stack(self):
+    def _force_delete_stack(self):
         cf = self.create_boto_client("cloudformation")
         s3 = self.create_boto_resource("s3")
         dynamodb = self.create_boto_client("dynamodb")
