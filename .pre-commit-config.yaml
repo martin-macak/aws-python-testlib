@@ -1,0 +1,39 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: end-of-file-fixer
+        name: eof
+      - id: check-yaml
+        name: check-yaml
+        exclude: template*\.yaml$
+      - id: trailing-whitespace
+        name: trailing-whitespace
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        name: ruff
+        types_od: [ python, pyi, jupyter ]
+        args: [ --fix ]
+      - id: ruff-format
+        name: ruff-format
+  - repo: local
+    hooks:
+      - id: openapi-validate
+        name: openapi-validate
+        entry: npx -y @oas-tools/cli validate build/codegen/aws_apigw/public.openapi.yaml
+        language: system
+        types: [ yaml ]
+        pass_filenames: false
+        always_run: true
+  - repo: local
+    hooks:
+      - id: pytest
+        name: unit-test
+        entry: |
+          poetry run pytest -m "not integration and not integration_isolated and not api and not aws and not localstack" tests/unit
+        language: system
+        types: [ python ]
+        pass_filenames: false
+        always_run: true

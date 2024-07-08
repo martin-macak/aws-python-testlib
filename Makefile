@@ -1,17 +1,17 @@
+VARS_OLD := $(.VARIABLES)
+
 SHELL := /bin/bash
 MAKE := make
 
-TESTS ?= unit
+BUILD_DIR := dist
+
 
 all: build
 
-build: poetry.lock dist/*.whl
+build: $(BUILD_DIR)/*.whl
 	@poetry install
 
-poetry.lock: pyproject.toml
-	@poetry lock
-
-dist/*.whl: poetry.lock
+dist/*.whl:
 	@poetry dynamic-versioning
 	@poetry build
 
@@ -20,11 +20,15 @@ publish:
 	@poetry run twine upload --repository pypi dist/*.whl
 
 test:
-	@pytest tests -m $(TESTS)
+	@pytest tests
 
 clean:
-	@rm -rf ./dist
+	@rm -rf $(BUILD_DIR)
 
-.PHONY: publish
-.PHONY: clean
-.PHONY: test
+debug:
+	$(foreach v,                                        \
+		  $(filter-out $(VARS_OLD) VARS_OLD,$(.VARIABLES)), \
+		  $(info $(v) = $($(v))) \
+	)
+
+.PHONY: clean test publish debug

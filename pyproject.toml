@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-testlib"
-version = "0.1.0"
+version = "0.1.10.post25.dev0+73a1eff"
 description = "Provides support functions for testing AWS testing and mocking, namely AWS API Gateway Velocity engine"
 authors = ["Martin Macak <martin.macak@gmail.com>"]
 readme = "README.md"
@@ -25,6 +25,7 @@ openapi-spec-validator = "^0.7.1"
 pytest = "^7.4.4"
 pycrunch-engine = "^1.6.3"
 boto3 = "^1.34.23"
+pytest-mock = "^3.14.0"
 
 [tool.poetry-dynamic-versioning]
 enable = true
